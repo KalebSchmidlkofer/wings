@@ -1,0 +1,73 @@
+services:
+  wings:
+    image: ghcr.io/pterodactyl/wings:latest
+    restart: always
+    networks:
+      - wings
+    ports:
+      - "8282:8282"
+      - "2022:2022"
+    tty: true
+    environment:
+      TZ: "America/Los_Angeles"
+      WINGS_UID: 1001
+      WINGS_GID: 1001
+      WINGS_USERNAME: pterodactyl
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "/var/lib/docker/containers/:/var/lib/docker/containers/"
+      - "/etc/pterodactyl/:/etc/pterodactyl/"
+      - "/var/lib/pterodactyl/:/var/lib/pterodactyl/"
+      - "/var/log/pterodactyl/:/var/log/pterodactyl/"
+      - "/tmp/pterodactyl/:/tmp/pterodactyl/"
+      - "/etc/ssl/certs:/etc/ssl/certs:ro"
+      # you may need /srv/daemon-data if you are upgrading from an old daemon
+      #- "/srv/daemon-data/:/srv/daemon-data/"
+      # Required for ssl if you use let's encrypt. uncomment to use.
+      #- "/etc/letsencrypt/:/etc/letsencrypt/"
+
+  db:
+    image: mariadb:10.11
+    restart: always
+    command: --default-authentication-plugin=mysql_native_password
+    ports:
+      - ${PORT_DB:-3306}:3306
+    networks:
+      - wings
+    volumes:
+      - db:/var/lib/mysql
+    environment:
+      - MYSQL_DATABASE=servers
+      - MYSQL_USER=pterodactyl
+      - MYSQL_PASSWORD=$SQL_PASS
+      - MYSQL_ROOT_PASSWORD=$SQL_PASS_ROOT
+    healthcheck:
+      test: ["CMD", "mariadb-admin", "ping", "-proot", "--password=$MYSQL_PASS_ROOT"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    labels:
+      - "autoheal=true"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  wings:
+    name: wings
+    driver: bridge
+    ipam:
+      config:
+        - subnet: "172.22.0.0/16"
+    driver_opts:
+      com.docker.network.bridge.name: wings
+
+volumes:
+  config:
+  lib:
+  daemon:
+  db:
+  logs:
+
